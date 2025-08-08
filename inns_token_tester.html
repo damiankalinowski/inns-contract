@@ -1,0 +1,156 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>INNS Token Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; color: #333; }
+    h1 { color: #222; }
+    input, button, select { padding: 8px; margin: 5px; font-size: 1em; }
+    .section { margin-bottom: 30px; }
+    .address { font-weight: bold; }
+    .status { font-size: 1.2em; margin-top: 10px; }
+    .green { color: green; }
+    .red { color: red; }
+  </style>
+</head>
+<body>
+  <h1>INNS Token Control Panel</h1>
+
+  <div class="section">
+    <button onclick="connectWallet()">🔌 Connect Wallet</button>
+    <div id="wallet" class="address"></div>
+    <div id="roles"></div>
+  </div>
+
+  <div class="section">
+    <div id="tokenStatus" class="status"></div>
+    <button onclick="getTreasury()">🏦 Show Treasury</button>
+    <div id="treasury" class="address"></div>
+  </div>
+
+  <div class="section">
+    <h3>🚀 Transfer Tokens</h3>
+    <input id="recipient" placeholder="Recipient Address" size="42"/>
+    <input id="amount" placeholder="Amount" type="number"/>
+    <button onclick="sendTokens()">Send</button>
+  </div>
+
+  <div class="section">
+    <h3>🔥 Burn Tokens</h3>
+    <input id="burnAmount" placeholder="Amount to Burn" type="number"/>
+    <button onclick="burnTokens()">Burn</button>
+  </div>
+
+  <div class="section">
+    <h3>⏸️ Pause / ▶️ Unpause</h3>
+    <button onclick="pause()">Pause</button>
+    <button onclick="unpause()">Unpause</button>
+  </div>
+
+  <script>
+    const contractAddress = "0xeaEdF9d722762638440c4A05a92D125eee80BEED"; // Proxy address
+    const ABI = [
+      "function name() public view returns (string)",
+      "function symbol() public view returns (string)",
+      "function pause() public",
+      "function unpause() public",
+      "function paused() public view returns (bool)",
+      "function treasury() public view returns (address)",
+      "function transfer(address to, uint256 amount) public returns (bool)",
+      "function burn(uint256 amount) public",
+      "function totalBurned() public view returns (uint256)",
+      "function hasRole(bytes32 role, address account) public view returns (bool)"
+    ];
+    const roles = {
+      "DEFAULT_ADMIN_ROLE": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "PAUSER_ROLE": ethers.utils.id("PAUSER_ROLE"),
+      "UPGRADER_ROLE": ethers.utils.id("UPGRADER_ROLE"),
+      "BURNER_ROLE": ethers.utils.id("BURNER_ROLE"),
+    };
+
+    let signer, contract;
+
+    async function connectWallet() {
+      if (!window.ethereum) return alert("MetaMask not detected.");
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      const address = await signer.getAddress();
+      document.getElementById("wallet").innerText = "Connected: " + address;
+
+      contract = new ethers.Contract(contractAddress, ABI, signer);
+      updateStatus();
+      checkRoles(address);
+    }
+
+    async function updateStatus() {
+      const isPaused = await contract.paused();
+      document.getElementById("tokenStatus").innerHTML =
+        "Token Paused: " + (isPaused ? "<span class='red'>🔴 Yes</span>" : "<span class='green'>🟢 No</span>");
+    }
+
+    async function checkRoles(address) {
+      const results = [];
+      for (const role in roles) {
+        const has = await contract.hasRole(roles[role], address);
+        results.push(`${role}: ${has ? "✅" : "❌"}`);
+      }
+      document.getElementById("roles").innerHTML = "<pre>" + results.join("\n") + "</pre>";
+    }
+
+    async function getTreasury() {
+      const addr = await contract.treasury();
+      document.getElementById("treasury").innerText = "Treasury: " + addr;
+    }
+
+    async function sendTokens() {
+      const to = document.getElementById("recipient").value;
+      const amt = document.getElementById("amount").value;
+      try {
+        const tx = await contract.transfer(to, ethers.utils.parseEther(amt));
+        await tx.wait();
+        alert("✅ Transfer complete");
+      } catch (e) {
+        alert("Transfer failed: " + e.message);
+      }
+    }
+
+    async function burnTokens() {
+      const amt = document.getElementById("burnAmount").value;
+      try {
+        const tx = await contract.burn(ethers.utils.parseEther(amt));
+        await tx.wait();
+        alert("🔥 Burn complete");
+      } catch (e) {
+        alert("Burn failed: " + e.message);
+      }
+    }
+
+    async function pause() {
+      try {
+        const tx = await contract.pause();
+        await tx.wait();
+        updateStatus();
+        alert("⏸️ Contract paused");
+      } catch (e) {
+        alert("Pause failed: " + e.message);
+      }
+    }
+
+    async function unpause() {
+      try {
+        const tx = await contract.unpause();
+        await tx.wait();
+        updateStatus();
+        alert("▶️ Contract unpaused");
+      } catch (e) {
+        alert("Unpause failed: " + e.message);
+      }
+    }
+  </script>
+</body>
+</html>

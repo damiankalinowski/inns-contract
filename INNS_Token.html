@@ -1,0 +1,203 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>INNS Token Tester</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+  <h2>INNS Token Tester</h2>
+  <p id="wallet">🔌 Not connected</p>
+  <button onclick="connectWallet()">Connect Wallet</button>
+
+  <hr>
+
+  <div>
+    <p><strong>Token Info:</strong></p>
+    <p>Name: <span id="tokenName">-</span></p>
+    <p>Symbol: <span id="tokenSymbol">-</span></p>
+    <p>Total Supply: <span id="totalSupply">-</span></p>
+    <p>Your Balance: <span id="userBalance">-</span></p>
+  </div>
+
+  <hr>
+
+  <div>
+    <label>Recipient address:</label>
+    <input id="to" placeholder="0x...">
+    <label>Amount:</label>
+    <input id="amount" placeholder="1000">
+    <button onclick="sendTokens()">Send</button>
+  </div>
+
+  <div>
+    <label>Burn amount:</label>
+    <input id="burnAmount" placeholder="100">
+    <button onclick="burnTokens()">Burn</button>
+  </div>
+
+  <div>
+    <button onclick="pause()">Pause</button>
+    <button onclick="unpause()">Unpause</button>
+  </div>
+
+  <hr>
+  <div>
+    <p><strong>Role checker:</strong></p>
+    <p id="roleInfo">Not loaded</p>
+  </div>
+
+  <div>
+    <label>Grant role to address:</label>
+    <input id="roleAddress" placeholder="0x...">
+    <button onclick="grantRole('0x0000000000000000000000000000000000000000000000000000000000000000')">Grant DEFAULT_ADMIN_ROLE</button>
+    <button onclick="grantRole(pauserRole)">Grant PAUSER_ROLE</button>
+    <button onclick="grantRole(upgraderRole)">Grant UPGRADER_ROLE</button>
+    <button onclick="grantRole(burnerRole)">Grant BURNER_ROLE</button>
+  </div>
+
+  <script>
+    const contractAddress = "0x17234a16c4AA3cf2330F779Ca602B6B430D96842";
+    const abi = [
+      "function name() public view returns (string)",
+      "function symbol() public view returns (string)",
+      "function totalSupply() public view returns (uint256)",
+      "function balanceOf(address) public view returns (uint256)",
+      "function decimals() public view returns (uint8)",
+      "function transfer(address to, uint amount) public returns (bool)",
+      "function burn(uint256 amount) public",
+      "function pause() public",
+      "function unpause() public",
+      "function hasRole(bytes32 role, address account) public view returns (bool)",
+      "function grantRole(bytes32 role, address account) public"
+    ];
+
+    const pauserRole = ethers.utils.id("PAUSER_ROLE");
+    const upgraderRole = ethers.utils.id("UPGRADER_ROLE");
+    const burnerRole = ethers.utils.id("BURNER_ROLE");
+
+    let provider;
+    let signer;
+    let contract;
+    let userAddress;
+
+    async function connectWallet() {
+      if (window.ethereum) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        userAddress = await signer.getAddress();
+        document.getElementById("wallet").textContent = `Connected: ${userAddress}`;
+        contract = new ethers.Contract(contractAddress, abi, signer);
+
+        loadTokenInfo();
+        checkRoles();
+      } else {
+        alert("Please install MetaMask");
+      }
+    }
+
+    async function loadTokenInfo() {
+      try {
+        const [name, symbol, supply, balance, decimals] = await Promise.all([
+          contract.name(),
+          contract.symbol(),
+          contract.totalSupply(),
+          contract.balanceOf(userAddress),
+          contract.decimals()
+        ]);
+
+        document.getElementById("tokenName").textContent = name;
+        document.getElementById("tokenSymbol").textContent = symbol;
+        document.getElementById("totalSupply").textContent = ethers.utils.formatUnits(supply, decimals);
+        document.getElementById("userBalance").textContent = ethers.utils.formatUnits(balance, decimals);
+      } catch (err) {
+        console.error("❌ Token info error:", err);
+      }
+    }
+
+    async function sendTokens() {
+      const to = document.getElementById("to").value;
+      const amount = document.getElementById("amount").value;
+      try {
+        const decimals = await contract.decimals();
+        const tx = await contract.transfer(to, ethers.utils.parseUnits(amount, decimals));
+        console.log("Send TX submitted:", tx.hash);
+        await tx.wait();
+        console.log("✅ Send TX confirmed:", tx.hash);
+        loadTokenInfo();
+      } catch (err) {
+        console.error("❌ Send error:", err);
+      }
+    }
+
+    async function burnTokens() {
+      const amount = document.getElementById("burnAmount").value;
+      try {
+        const decimals = await contract.decimals();
+        const tx = await contract.burn(ethers.utils.parseUnits(amount, decimals));
+        console.log("Burn TX submitted:", tx.hash);
+        await tx.wait();
+        console.log("✅ Burn TX confirmed:", tx.hash);
+        loadTokenInfo();
+      } catch (err) {
+        console.error("❌ Burn error:", err);
+      }
+    }
+
+    async function pause() {
+      try {
+        const tx = await contract.pause();
+        console.log("Pause TX submitted:", tx.hash);
+        await tx.wait();
+        console.log("✅ Paused:", tx.hash);
+      } catch (err) {
+        console.error("❌ Pause error:", err);
+      }
+    }
+
+    async function unpause() {
+      try {
+        const tx = await contract.unpause();
+        console.log("Unpause TX submitted:", tx.hash);
+        await tx.wait();
+        console.log("✅ Unpaused:", tx.hash);
+      } catch (err) {
+        console.error("❌ Unpause error:", err);
+      }
+    }
+
+    async function checkRoles() {
+      try {
+        const admin = await contract.hasRole("0x0000000000000000000000000000000000000000000000000000000000000000", userAddress);
+        const pauser = await contract.hasRole(pauserRole, userAddress);
+        const upgrader = await contract.hasRole(upgraderRole, userAddress);
+        const burner = await contract.hasRole(burnerRole, userAddress);
+        document.getElementById("roleInfo").innerHTML = `
+          DEFAULT_ADMIN_ROLE: ${admin ? '✅' : '❌'}<br>
+          PAUSER_ROLE: ${pauser ? '✅' : '❌'}<br>
+          UPGRADER_ROLE: ${upgrader ? '✅' : '❌'}<br>
+          BURNER_ROLE: ${burner ? '✅' : '❌'}<br>
+        `;
+        console.log("✅ Role status updated");
+      } catch (err) {
+        console.error("❌ Role check error:", err);
+      }
+    }
+
+    async function grantRole(role) {
+      const address = document.getElementById("roleAddress").value;
+      try {
+        const tx = await contract.grantRole(role, address);
+        console.log(`GrantRole TX submitted for role ${role}:`, tx.hash);
+        await tx.wait();
+        console.log("✅ Role granted:", tx.hash);
+        checkRoles();
+      } catch (err) {
+        console.error("❌ GrantRole error:", err);
+      }
+    }
+  </script>
+</body>
+</html>

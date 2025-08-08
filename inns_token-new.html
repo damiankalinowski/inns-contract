@@ -1,0 +1,62 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>INNS Token Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9; }
+    h1 { color: #333; }
+    .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); margin-top: 20px; }
+    .card h2 { margin-top: 0; }
+    .data-row { margin-bottom: 10px; }
+    .label { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>INNS Token Dashboard</h1>
+  <div class="card">
+    <div class="data-row"><span class="label">Connected:</span> <span id="wallet-address">Not connected</span></div>
+    <div class="data-row"><span class="label">Token Name:</span> <span id="token-name">-</span></div>
+    <div class="data-row"><span class="label">Token Symbol:</span> <span id="token-symbol">-</span></div>
+    <div class="data-row"><span class="label">Total Supply:</span> <span id="token-supply">-</span></div>
+    <div class="data-row"><span class="label">Your Balance:</span> <span id="token-balance">-</span></div>
+  </div>
+
+  <script>
+    const tokenAddress = "0x17234a16c4AA3cf2330F779Ca602B6B430D96842"; // aktualny proxy
+    const abi = [
+      "function name() view returns (string)",
+      "function symbol() view returns (string)",
+      "function totalSupply() view returns (uint256)",
+      "function balanceOf(address) view returns (uint256)"
+    ];
+
+    async function connectAndFetch() {
+      if (window.ethereum) {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        const signer = provider.getSigner();
+        const account = await signer.getAddress();
+
+        document.getElementById("wallet-address").textContent = account;
+
+        const token = new ethers.Contract(tokenAddress, abi, provider);
+        const name = await token.name();
+        const symbol = await token.symbol();
+        const totalSupply = await token.totalSupply();
+        const balance = await token.balanceOf(account);
+
+        document.getElementById("token-name").textContent = name;
+        document.getElementById("token-symbol").textContent = symbol;
+        document.getElementById("token-supply").textContent = ethers.utils.formatUnits(totalSupply, 18);
+        document.getElementById("token-balance").textContent = ethers.utils.formatUnits(balance, 18);
+      } else {
+        alert("Metamask not found");
+      }
+    }
+
+    window.onload = connectAndFetch;
+  </script>
+</body>
+</html>

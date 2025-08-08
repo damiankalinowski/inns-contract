@@ -1,0 +1,9 @@
+{
+  "network": "bsc",
+  "proxy": "0x1BaADC71A4de933002Ca0c11677d0901CBc9d1B2",
+  "implementation": "0x104d6929e4E5fDa23AC5003289fC16f8B5C8DB80",
+  "multisig": "0x3BaBBcDf6d29B28400AbbCf120E46b8658d3A77C",
+  "deployer": "0x2c7707D789d2d9F245b99A539b5F26B23dbC48E4",
+  "verified": true,
+  "date": "2025-08-08"
+}

@@ -1,0 +1,48 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>INNS Token Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 2em; background: #f9f9f9; }
+    h1 { color: #222; }
+    .data { margin: 1em 0; }
+    button { padding: 0.5em 1em; }
+  </style>
+</head>
+<body>
+  <h1>INNS Token Dashboard</h1>
+  <button id="connectButton">Connect Wallet</button>
+  <div class="data" id="status">Not connected</div>
+  <div class="data"><strong>Name:</strong> <span id="name">-</span></div>
+  <div class="data"><strong>Symbol:</strong> <span id="symbol">-</span></div>
+  <div class="data"><strong>Total Supply:</strong> <span id="totalSupply">-</span></div>
+  <div class="data"><strong>Your Balance:</strong> <span id="balance">-</span></div>
+
+  <script type="module">
+    import ABI from './INNSToken.json' assert { type: 'json' };
+
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    let signer, token;
+
+    document.getElementById('connectButton').addEventListener('click', async () => {
+      try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        signer = await provider.getSigner();
+        document.getElementById('status').innerText = 'Connected: ' + await signer.getAddress();
+
+        token = new ethers.Contract("0x17234a16c4AA3cf2330F779Ca602B6B430D96842", ABI.abi, signer);
+        document.getElementById('name').innerText = await token.name();
+        document.getElementById('symbol').innerText = await token.symbol();
+        document.getElementById('totalSupply').innerText = (await token.totalSupply()).toString();
+        document.getElementById('balance').innerText = (await token.balanceOf(await signer.getAddress())).toString();
+      } catch (err) {
+        console.error(err);
+        document.getElementById('status').innerText = 'Error: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
