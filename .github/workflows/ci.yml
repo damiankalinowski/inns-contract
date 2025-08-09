@@ -1,13 +1,22 @@
 name: CI
 on:
-  push: { branches: [main] }
+  push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:   #  "Run workflow"
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - run: npm i
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm install --no-audit --no-fund
+      - run: npx hardhat --version
       - run: npx hardhat compile
+        env:
+          PRIVATE_KEY: ""        
+          ETHERSCAN_API_KEY: ""
