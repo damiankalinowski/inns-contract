@@ -4,5 +4,4 @@ artifacts/
 cache/
 coverage/
 typechain/
-package-lock.json
 .DS_Store
